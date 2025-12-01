@@ -14,6 +14,7 @@ if (!function_exists('renderHeader')) {
             <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/reset.css">
             <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/variables.css">
             <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/components.css">
+            <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/modal-scroll-fix.css?v=<?php echo time(); ?>">
             <link rel="stylesheet" href="<?php echo BASE_URL; ?>/assets/css/main.css">
         </head>
 

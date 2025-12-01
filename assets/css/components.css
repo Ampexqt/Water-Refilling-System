@@ -288,6 +288,7 @@ textarea.input {
     display: flex;
     flex-direction: column;
     animation: modalIn 0.2s ease-out;
+    overflow: hidden;
 }
 
 .modal-sm {
@@ -300,6 +301,7 @@ textarea.input {
     justify-content: space-between;
     padding: var(--space-6);
     border-bottom: 1px solid var(--water-200);
+    flex-shrink: 0;
 }
 
 .modal-icon-header {
@@ -352,7 +354,27 @@ textarea.input {
 .modal-body {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: var(--space-6);
+    min-height: 0;
+}
+
+.modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-body::-webkit-scrollbar-track {
+    background: var(--water-50);
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb {
+    background: var(--water-200);
+    border-radius: 4px;
+}
+
+.modal-body::-webkit-scrollbar-thumb:hover {
+    background: var(--water-300);
 }
 
 .modal-body-centered {
@@ -367,6 +389,7 @@ textarea.input {
     gap: var(--space-3);
     padding: var(--space-6);
     border-top: 1px solid var(--water-200);
+    flex-shrink: 0;
 }
 
 /* Logout Modal Specific Styles */
