@@ -4,24 +4,6 @@ require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../auth/session.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/header.php';
-require_once __DIR__ . '/../includes/sidebar.php';
-
-requireRole('admin');
-
-$conn = getDBConnection();
-
-// Get all deliveries
-$deliveriesQuery = "SELECT d.*, c.name as customer_name, c.phone 
-                    FROM deliveries d 
-                    JOIN customers c ON d.customer_id = c.id 
-                    ORDER BY d.scheduled_date DESC, d.scheduled_time DESC";
-$deliveries = $conn->query($deliveriesQuery);
-
-renderHeader('Deliveries');
-?>
-
-<div class="dashboard-layout">
-    <?php renderSidebar('deliveries'); ?>
 
     <main class="main-content">
         <div class="content-wrapper">
