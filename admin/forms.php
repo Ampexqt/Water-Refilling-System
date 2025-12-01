@@ -145,7 +145,7 @@ renderHeader('Forms');
 
 <!-- Add Order Modal -->
 <div id="addOrderModal" class="modal-overlay">
-    <div class="modal">
+    <div class="modal" style="overflow: hidden; max-height: 70vh; display: flex; flex-direction: column;">
         <div class="modal-header">
             <h2 class="modal-title">Create New Order</h2>
             <button class="modal-close" data-close-modal="addOrderModal">
@@ -157,7 +157,7 @@ renderHeader('Forms');
         </div>
         <form method="POST" action="">
             <input type="hidden" name="action" value="create">
-            <div class="modal-body">
+            <div class="modal-body" style="flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; min-height: 0; max-height: calc(70vh - 180px);">
                 <div class="form-group">
                     <label class="form-label" for="customer_id">Customer</label>
                     <select id="customer_id" name="customer_id" class="input" required>
@@ -207,7 +207,7 @@ renderHeader('Forms');
                     </select>
                 </div>
             </div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="flex-shrink: 0; background: white; padding: 1.5rem; border-top: 1px solid #B2DFDB; display: flex; justify-content: flex-end; gap: 0.75rem;">
                 <button type="button" class="btn btn-secondary" data-close-modal="addOrderModal">Cancel</button>
                 <button type="submit" class="btn btn-primary">Create Order</button>
             </div>
