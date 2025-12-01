@@ -10,28 +10,6 @@ requireRole('admin');
 
 $conn = getDBConnection();
 $message = '';
-$messageType = '';
-
-// Handle form submissions
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (isset($_POST['action'])) {
-        switch ($_POST['action']) {
-            case 'create':
-                $customer_id = intval($_POST['customer_id']);
-                $container_size = sanitizeInput($_POST['container_size']);
-                $quantity = intval($_POST['quantity']);
-                $delivery_date = sanitizeInput($_POST['delivery_date']);
-                $delivery_time = sanitizeInput($_POST['delivery_time']);
-                $notes = sanitizeInput($_POST['notes']);
-                $status = sanitizeInput($_POST['status']);
-
-                $stmt = $conn->prepare("INSERT INTO orders (customer_id, container_size, quantity, delivery_date, delivery_time, notes, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-                $userId = getUserId();
-                $stmt->bind_param("ississsi", $customer_id, $container_size, $quantity, $delivery_date, $delivery_time, $notes, $status, $userId);
-
-                if ($stmt->execute()) {
-                    $updateStmt = $conn->prepare("UPDATE customers SET total_orders = total_orders + 1 WHERE id = ?");
-                    $updateStmt->bind_param("i", $customer_id);
                     $updateStmt->execute();
                     $updateStmt->close();
 
