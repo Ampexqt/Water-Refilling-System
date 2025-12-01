@@ -17,7 +17,8 @@ if (!function_exists('renderSidebar')) {
             ['url' => 'index.php', 'icon' => 'layout-dashboard', 'label' => 'Dashboard'],
             ['url' => 'customers.php', 'icon' => 'users', 'label' => 'Customers'],
             ['url' => 'forms.php', 'icon' => 'file-text', 'label' => 'Forms'],
-            ['url' => 'deliveries.php', 'icon' => 'truck', 'label' => 'Deliveries']
+            ['url' => 'deliveries.php', 'icon' => 'truck', 'label' => 'Deliveries'],
+            ['url' => 'pos.php', 'icon' => 'shopping-cart', 'label' => 'Point of Sale']
         ];
 
         $links = $role === 'admin' ? $adminLinks : $cashierLinks;
