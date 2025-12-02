@@ -140,6 +140,65 @@ A comprehensive PHP/MySQL-based water refilling business management system desig
 
 **⚠️ IMPORTANT**: Change these passwords immediately after first login in production!
 
+## 📖 User Guide
+
+This system is designed to be intuitive for both administrators and cashiers. Here is how to handle common daily tasks.
+
+### 1. Admin Interface (Business Owners & Managers)
+
+**📊 Dashboard Overview**
+The Admin Dashboard provides a real-time snapshot of your business:
+- **Key Metrics**: Instantly see total active customers, today's revenue, and pending deliveries.
+- **Recent Activity**: Monitor the latest orders and upcoming delivery schedules.
+
+**👥 Managing Customers**
+- **Add New**: Go to **Customers** > **Add Customer**. Enter their Name, Phone, and Address.
+- **View History**: Click on any customer to see their total orders and activity logs.
+- **Edit/Delete**: Easily update customer details or remove inactive records.
+
+**📝 Processing Orders (Refills)**
+1. Navigate to **Order Forms**.
+2. Click **"New Order"**.
+3. **Select Customer**: Choose from your registered list.
+4. **Order Details**: Pick the container size (5-gal, 3-gal, 1-gal) and quantity.
+5. **Schedule**: Set the **Delivery Date & Time**.
+6. **Status**: Start as "Pending" and update as the order progresses.
+
+**🚚 Managing Deliveries**
+1. Go to the **Deliveries** page.
+2. View a chronological list of all scheduled deliveries.
+3. **Update Status**: Move deliveries from "Pending" → "In-Transit" → "Completed" as your drivers fulfill them.
+
+### 2. Cashier Interface (Front Desk)
+
+**💰 Point of Sale (POS)**
+Ideal for walk-in customers who pay immediately:
+1. Go to **Point of Sale**.
+2. **Select Items**: Click products (e.g., 5-Gallon Refill) to add them to the cart.
+3. **Customer**: Link to a registered customer or leave as "Walk-in".
+4. **Checkout**: Review total, select payment method (Cash, Card, GCash), and complete the sale.
+
+**⚡ Quick Dashboard**
+Focuses on daily performance:
+- **Today's Sales**: Track cash collected today.
+- **Transaction Count**: See how many customers have been served.
+
+### 3. Common Workflows
+
+**Scenario A: A New Customer Calls for Delivery**
+1. **Log in** as Admin.
+2. Go to **Customers** > **Add Customer** and save their details.
+3. Go to **Order Forms** > **New Order**.
+4. Select the new customer, enter order details, and set the **Delivery Date**.
+5. Click **Create Order**. It now appears on the Delivery Schedule.
+
+**Scenario B: A Walk-in Customer Buys a Bottle**
+1. **Log in** as Cashier.
+2. Go to **Point of Sale**.
+3. Tap the product (e.g., "5-Gallon Round").
+4. Click **Pay**, enter the amount received, and confirm.
+5. The transaction is recorded, and inventory/sales stats update automatically.
+
 ## Project Structure
 
 ```
