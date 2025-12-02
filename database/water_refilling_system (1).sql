@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1:3306
--- Generation Time: Dec 02, 2025 at 05:19 PM
+-- Generation Time: Dec 02, 2025 at 07:42 PM
 -- Server version: 9.1.0
 -- PHP Version: 8.3.14
 
@@ -40,13 +40,6 @@ CREATE TABLE IF NOT EXISTS `customers` (
   PRIMARY KEY (`id`)
 ) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
---
--- Dumping data for table `customers`
---
-
-INSERT INTO `customers` (`id`, `name`, `phone`, `address`, `status`, `total_orders`, `created_at`, `updated_at`) VALUES
-(5, 'Angelito', '09538435067', 'Flamingo village, calarian, zamboanga city', 'active', 3, '2025-12-01 18:42:37', '2025-12-02 16:41:55');
-
 -- --------------------------------------------------------
 
 --
@@ -72,7 +65,7 @@ CREATE TABLE IF NOT EXISTS `deliveries` (
   KEY `order_id` (`order_id`),
   KEY `customer_id` (`customer_id`),
   KEY `created_by` (`created_by`)
-) ENGINE=MyISAM AUTO_INCREMENT=8 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -96,16 +89,7 @@ CREATE TABLE IF NOT EXISTS `orders` (
   PRIMARY KEY (`id`),
   KEY `customer_id` (`customer_id`),
   KEY `created_by` (`created_by`)
-) ENGINE=MyISAM AUTO_INCREMENT=11 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
---
--- Dumping data for table `orders`
---
-
-INSERT INTO `orders` (`id`, `customer_id`, `container_size`, `quantity`, `delivery_date`, `delivery_time`, `notes`, `status`, `created_by`, `created_at`, `updated_at`) VALUES
-(10, 5, '5-gallon', 1, '0000-00-00', '03:45:00', '', 'pending', 1, '2025-12-02 16:41:55', '2025-12-02 17:18:38'),
-(9, 5, '1-gallon', 5, '0000-00-00', '14:30:00', '', 'processing', 1, '2025-12-02 16:28:05', '2025-12-02 16:29:06'),
-(8, 5, '3-gallon', 4, '2025-12-04', '14:00:00', '', 'processing', 1, '2025-12-01 18:43:20', '2025-12-02 16:25:56');
+) ENGINE=MyISAM AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -126,7 +110,7 @@ CREATE TABLE IF NOT EXISTS `pos_transactions` (
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `created_by` (`created_by`)
-) ENGINE=MyISAM AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- --------------------------------------------------------
 
@@ -147,14 +131,14 @@ CREATE TABLE IF NOT EXISTS `users` (
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `users`
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `password`, `role`, `status`, `last_login`, `created_at`, `updated_at`) VALUES
-(1, 'Admin User', 'admin@aquaflow.com', '$2y$10$dkp9xxG0rLwsV86vlptCPugt4Jzdoum2kAcNSLfEIs0eDw792ld12', 'admin', 'active', '2025-12-03 00:17:47', '2025-11-27 15:11:27', '2025-12-02 16:17:47'),
+(1, 'Admin User', 'admin@aquaflow.com', '$2y$10$dkp9xxG0rLwsV86vlptCPugt4Jzdoum2kAcNSLfEIs0eDw792ld12', 'admin', 'active', '2025-12-03 03:09:38', '2025-11-27 15:11:27', '2025-12-02 19:09:38'),
 (2, 'Cashier User', 'cashier@aquaflow.com', '$2y$10$dkp9xxG0rLwsV86vlptCPugt4Jzdoum2kAcNSLfEIs0eDw792ld12', 'cashier', 'active', '2025-12-02 01:50:56', '2025-11-27 15:11:27', '2025-12-01 17:50:56');
 COMMIT;
 
