@@ -1,108 +1,147 @@
--- Database: water_refilling_system
--- Drop database if exists and create fresh
-DROP DATABASE IF EXISTS water_refilling_system;
-CREATE DATABASE water_refilling_system;
-USE water_refilling_system;
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1:3306
+-- Generation Time: Dec 02, 2025 at 07:42 PM
+-- Server version: 9.1.0
+-- PHP Version: 8.3.14
 
--- Users Table
-CREATE TABLE users (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL,
-    email VARCHAR(191) UNIQUE NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'cashier') NOT NULL DEFAULT 'cashier',
-    status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-    last_login DATETIME,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
 
 
--- Customers Table
-CREATE TABLE customers (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(255) NOT NULL,
-    phone VARCHAR(20) NOT NULL,
-    address TEXT NOT NULL,
-    status ENUM('active', 'inactive') NOT NULL DEFAULT 'active',
-    total_orders INT DEFAULT 0,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
 
--- Orders Table
-CREATE TABLE orders (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    customer_id INT NOT NULL,
-    container_size ENUM('5-gallon', '3-gallon', '1-gallon') NOT NULL,
-    quantity INT NOT NULL,
-    delivery_date DATE,
-    delivery_time TIME,
-    notes TEXT,
-    status ENUM('pending', 'processing', 'completed', 'cancelled') DEFAULT 'pending',
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users(id)
-);
+--
+-- Database: `water_refilling_system`
+--
 
--- Deliveries Table
-CREATE TABLE deliveries (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    order_id INT NOT NULL,
-    customer_id INT NOT NULL,
-    delivery_address TEXT NOT NULL,
-    items VARCHAR(255) NOT NULL,
-    scheduled_date DATE NOT NULL,
-    scheduled_time TIME NOT NULL,
-    status ENUM('pending', 'in-transit', 'completed', 'cancelled') DEFAULT 'pending',
-    notes TEXT,
-    delivered_at DATETIME,
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-    FOREIGN KEY (created_by) REFERENCES users(id)
-);
+-- --------------------------------------------------------
 
--- POS Transactions Table
-CREATE TABLE pos_transactions (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    customer_name VARCHAR(255),
-    items JSON NOT NULL,
-    subtotal DECIMAL(10, 2) NOT NULL,
-    tax DECIMAL(10, 2) DEFAULT 0,
-    total DECIMAL(10, 2) NOT NULL,
-    payment_method ENUM('cash', 'card', 'gcash') DEFAULT 'cash',
-    created_by INT NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (created_by) REFERENCES users(id)
-);
+--
+-- Table structure for table `customers`
+--
 
--- Insert Default Admin and Cashier Users
--- Password for both: password123
-INSERT INTO users (name, email, password, role, status) VALUES
-('Admin User', 'admin@aquaflow.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 'active'),
-('Cashier User', 'cashier@aquaflow.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'cashier', 'active');
+DROP TABLE IF EXISTS `customers`;
+CREATE TABLE IF NOT EXISTS `customers` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `phone` varchar(20) NOT NULL,
+  `address` text NOT NULL,
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `total_orders` int DEFAULT '0',
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
--- Insert Sample Customers
-INSERT INTO customers (name, phone, address, status, total_orders) VALUES
-('Juan Dela Cruz', '09171234567', '123 Main St, Manila', 'active', 15),
-('Maria Santos', '09181234567', '456 Oak Ave, Quezon City', 'active', 8),
-('Pedro Reyes', '09191234567', '789 Pine Rd, Makati', 'active', 12),
-('Ana Garcia', '09201234567', '321 Elm St, Pasig', 'active', 5);
+-- --------------------------------------------------------
 
--- Insert Sample Orders
-INSERT INTO orders (customer_id, container_size, quantity, delivery_date, delivery_time, notes, status, created_by) VALUES
-(1, '5-gallon', 3, '2025-11-28', '10:00:00', 'Please call before delivery', 'pending', 1),
-(2, '3-gallon', 5, '2025-11-28', '14:00:00', NULL, 'processing', 1),
-(3, '5-gallon', 2, '2025-11-27', '09:00:00', 'Leave at gate', 'completed', 1),
-(4, '1-gallon', 10, '2025-11-29', '11:00:00', NULL, 'pending', 2);
+--
+-- Table structure for table `deliveries`
+--
 
--- Insert Sample Deliveries
-INSERT INTO deliveries (order_id, customer_id, delivery_address, items, scheduled_date, scheduled_time, status, notes, created_by) VALUES
-(1, 1, '123 Main St, Manila', '3x 5-gallon', '2025-11-28', '10:00:00', 'pending', 'Please call before delivery', 1),
-(2, 2, '456 Oak Ave, Quezon City', '5x 3-gallon', '2025-11-28', '14:00:00', 'in-transit', NULL, 1),
-(3, 3, '789 Pine Rd, Makati', '2x 5-gallon', '2025-11-27', '09:00:00', 'completed', 'Leave at gate', 1);
+DROP TABLE IF EXISTS `deliveries`;
+CREATE TABLE IF NOT EXISTS `deliveries` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `order_id` int NOT NULL,
+  `customer_id` int NOT NULL,
+  `delivery_address` text NOT NULL,
+  `items` varchar(255) NOT NULL,
+  `scheduled_date` date NOT NULL,
+  `scheduled_time` time NOT NULL,
+  `status` enum('pending','in-transit','completed','cancelled') DEFAULT 'pending',
+  `notes` text,
+  `delivered_at` datetime DEFAULT NULL,
+  `created_by` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `order_id` (`order_id`),
+  KEY `customer_id` (`customer_id`),
+  KEY `created_by` (`created_by`)
+) ENGINE=MyISAM AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `orders`
+--
+
+DROP TABLE IF EXISTS `orders`;
+CREATE TABLE IF NOT EXISTS `orders` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `customer_id` int NOT NULL,
+  `container_size` enum('5-gallon','3-gallon','1-gallon') NOT NULL,
+  `quantity` int NOT NULL,
+  `delivery_date` date DEFAULT NULL,
+  `delivery_time` time DEFAULT NULL,
+  `notes` text,
+  `status` enum('pending','processing','completed','cancelled') DEFAULT 'pending',
+  `created_by` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `customer_id` (`customer_id`),
+  KEY `created_by` (`created_by`)
+) ENGINE=MyISAM AUTO_INCREMENT=17 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `pos_transactions`
+--
+
+DROP TABLE IF EXISTS `pos_transactions`;
+CREATE TABLE IF NOT EXISTS `pos_transactions` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `customer_name` varchar(255) DEFAULT NULL,
+  `items` json NOT NULL,
+  `subtotal` decimal(10,2) NOT NULL,
+  `tax` decimal(10,2) DEFAULT '0.00',
+  `total` decimal(10,2) NOT NULL,
+  `payment_method` enum('cash','card','gcash') DEFAULT 'cash',
+  `created_by` int NOT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `created_by` (`created_by`)
+) ENGINE=MyISAM AUTO_INCREMENT=6 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `users`
+--
+
+DROP TABLE IF EXISTS `users`;
+CREATE TABLE IF NOT EXISTS `users` (
+  `id` int NOT NULL AUTO_INCREMENT,
+  `name` varchar(255) NOT NULL,
+  `email` varchar(191) NOT NULL,
+  `password` varchar(255) NOT NULL,
+  `role` enum('admin','cashier') NOT NULL DEFAULT 'cashier',
+  `status` enum('active','inactive') NOT NULL DEFAULT 'active',
+  `last_login` datetime DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `email` (`email`)
+) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `users`
+--
+
+INSERT INTO `users` (`id`, `name`, `email`, `password`, `role`, `status`, `last_login`, `created_at`, `updated_at`) VALUES
+(1, 'Admin User', 'admin@aquaflow.com', '$2y$10$dkp9xxG0rLwsV86vlptCPugt4Jzdoum2kAcNSLfEIs0eDw792ld12', 'admin', 'active', '2025-12-03 03:09:38', '2025-11-27 15:11:27', '2025-12-02 19:09:38'),
+(2, 'Cashier User', 'cashier@aquaflow.com', '$2y$10$dkp9xxG0rLwsV86vlptCPugt4Jzdoum2kAcNSLfEIs0eDw792ld12', 'cashier', 'active', '2025-12-02 01:50:56', '2025-11-27 15:11:27', '2025-12-01 17:50:56');
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
