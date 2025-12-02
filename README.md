@@ -1,54 +1,104 @@
-# AquaFlow - Water Refilling System
+# AquaFlow - Water Refilling System Management
 
-A complete PHP/MySQL water refilling management system with 100% visual fidelity to modern design standards.
+A comprehensive PHP/MySQL-based water refilling business management system designed to streamline operations, manage customers, process orders, and track deliveries with a modern, intuitive interface.
 
-## Features
+## 🌟 Key Features
 
-### Admin Features
-- **Dashboard**: Real-time statistics and analytics
-- **Customer Management**: Full CRUD operations for customer database
-- **Order Forms**: Create and manage water refill orders
-- **Delivery Tracking**: Monitor and manage delivery schedules
-- **Point of Sale**: Process walk-in transactions
-- **User Management**: Manage system users and permissions
+### 👨‍💼 Admin Panel
+- **Dashboard**: Real-time business insights and analytics
+- **Customer Management**: Complete customer database with order history
+- **Order Processing**: Create, view, and manage water refill orders
+- **Delivery Management**: Schedule and track delivery status in real-time
+- **Point of Sale**: Process both walk-in and pre-orders efficiently
+- **User Management**: Control access with role-based permissions
+- **Reporting**: Generate sales and delivery reports
 
-### Cashier Features
-- **Dashboard**: View key statistics
-- **Customers**: View customer database
-- **Order Forms**: Create new orders
-- **Deliveries**: View delivery schedules
+### 💰 Cashier Interface
+- **Quick Order Processing**: Fast and efficient order entry
+- **Customer Lookup**: Access to customer information and order history
+- **Delivery Scheduling**: Schedule and update delivery details
+- **Transaction History**: View and manage sales records
 
-## Technology Stack
+## 🛠 Technology Stack
 
-- **Backend**: PHP 7.4+
-- **Database**: MySQL 5.7+
-- **Frontend**: HTML5, CSS3 (Custom Properties), Vanilla JavaScript
-- **Icons**: Inline SVG (Lucide-inspired)
-- **Design**: Custom design system with exact color palette
+- **Frontend**: 
+  - HTML5, CSS3 with Custom Properties
+  - Vanilla JavaScript (ES6+)
+  - Responsive Design (Mobile & Desktop)
+  - Inline SVG Icons (Lucide-inspired)
 
-## Installation
+- **Backend**:
+  - PHP 7.4+
+  - MySQL 5.7+ (InnoDB)
+  - PDO for database operations
+  - Secure session management
+
+- **Security**:
+  - Password hashing (bcrypt)
+  - Prepared statements
+  - Input validation and sanitization
+  - CSRF protection
+
+## 🚀 Installation Guide
 
 ### Prerequisites
+- Web Server: Apache/Nginx (WAMP/XAMPP/MAMP recommended)
 - PHP 7.4 or higher
 - MySQL 5.7 or higher
-- Apache/Nginx web server (WAMP, XAMPP, MAMP, or similar)
-- mysqli PHP extension enabled
+- Required PHP Extensions:
+  - mysqli
+  - PDO
+  - JSON
+  - Session
+  - cURL (recommended)
 
-### Setup Instructions
+### 🛠 Setup Instructions
 
-1. **Clone/Download the project**
-   ```bash
-   # Place in your web server directory
-   # For WAMP: C:\wamp64\www\Water-Refilling-System
-   # For XAMPP: C:\xampp\htdocs\Water-Refilling-System
-   ```
+1. **Download and Extract**
+   - Download the latest release or clone the repository
+   - Place the files in your web server's root directory:
+     - WAMP: `C:\wamp64\www\Water-Refilling-System`
+     - XAMPP: `C:\xampp\htdocs\Water-Refilling-System`
+     - MAMP: `/Applications/MAMP/htdocs/Water-Refilling-System`
 
-2. **Create Database**
-   - Open phpMyAdmin or MySQL command line
-   - Import the database schema:
-   ```bash
-   mysql -u root -p < database/schema.sql
-   ```
+2. **Database Setup**
+   - Create a new MySQL database named `water_refilling_system`
+   - Import the database schema using one of these methods:
+     
+     **Using phpMyAdmin:**
+     1. Open phpMyAdmin in your browser
+     2. Select the created database
+     3. Click "Import"
+     4. Choose `database/schema.sql`
+     5. Click "Go"
+
+     **Using MySQL Command Line:**
+     ```bash
+     mysql -u [username] -p water_refilling_system < database/schema.sql
+     ```
+
+3. **Configuration**
+   - Open `config/database.php` and update the database credentials:
+     ```php
+     define('DB_HOST', 'localhost');
+     define('DB_USER', 'your_username');
+     define('DB_PASS', 'your_password');
+     define('DB_NAME', 'water_refilling_system');
+     ```
+
+4. **Web Server Configuration (Optional)**
+   - Ensure mod_rewrite is enabled for clean URLs
+   - Set the document root to the project's public directory
+   - Configure proper file permissions (755 for directories, 644 for files)
+
+5. **Access the Application**
+   - Open your web browser
+   - Navigate to `http://localhost/Water-Refilling-System`
+   - Use the default credentials to log in:
+     - Admin: `admin@aquaflow.com` / `password123`
+     - Cashier: `cashier@aquaflow.com` / `password123`
+
+   ⚠️ **Important:** Change the default passwords after first login
    Or manually execute the SQL in `database/schema.sql`
 
 3. **Configure Database Connection**
@@ -171,11 +221,39 @@ water-refilling-system/
 - Safari (latest)
 - Edge (latest)
 
-## Database Schema
+## 🗃 Database Schema
 
-### Tables
-1. **users** - System users (admin, cashier)
-2. **customers** - Customer database
+The system uses a relational database with the following main tables:
+
+### Core Tables
+1. **users**
+   - Stores system user accounts (admin and cashier roles)
+   - Tracks login activity and user status
+
+2. **customers**
+   - Maintains customer information and order history
+   - Tracks customer activity and preferences
+
+3. **orders**
+   - Manages all water refill orders
+   - Tracks order status and delivery information
+
+4. **deliveries**
+   - Schedules and tracks delivery status
+   - Links to orders and customers
+
+5. **pos_transactions**
+   - Records point-of-sale transactions
+   - Tracks payment methods and totals
+
+## 🔒 Security Best Practices
+
+- All passwords are hashed using bcrypt
+- SQL injection prevention using prepared statements
+- CSRF protection for all forms
+- Input validation and sanitization
+- Session security measures
+- Role-based access control
 3. **orders** - Water refill orders
 4. **deliveries** - Delivery schedules
 5. **pos_transactions** - Point of sale transactions
