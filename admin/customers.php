@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../auth/session.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 
@@ -11,6 +12,7 @@ requireRole('admin');
 $conn = getDBConnection();
 $message = '';
 $messageType = '';
+$validator = new Validator();
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -22,17 +24,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $address = sanitizeInput($_POST['address']);
                 $status = sanitizeInput($_POST['status']);
 
-                $stmt = $conn->prepare("INSERT INTO customers (name, phone, address, status) VALUES (?, ?, ?, ?)");
-                $stmt->bind_param("ssss", $name, $phone, $address, $status);
+                // Validation
+                $validator->validateName($name, 'Customer Name');
+                $validator->validatePhone($phone, 'Phone Number');
+                $validator->validateRequired($address, 'Address');
 
-                if ($stmt->execute()) {
-                    $message = 'Customer added successfully!';
-                    $messageType = 'success';
-                } else {
-                    $message = 'Error adding customer: ' . $conn->error;
+                // Check for duplicate phone number
+                $validator->checkUnique($conn, 'customers', 'phone', $phone, 0, 'Phone Number');
+
+                if (!$validator->isValid()) {
+                    $message = $validator->getErrorsAsString();
                     $messageType = 'error';
+                } else {
+                    $stmt = $conn->prepare("INSERT INTO customers (name, phone, address, status) VALUES (?, ?, ?, ?)");
+                    $stmt->bind_param("ssss", $name, $phone, $address, $status);
+
+                    if ($stmt->execute()) {
+                        $message = 'Customer added successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error adding customer: ' . $conn->error;
+                        $messageType = 'error';
+                    }
+                    $stmt->close();
                 }
-                $stmt->close();
                 break;
 
             case 'update':
@@ -42,33 +57,59 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $address = sanitizeInput($_POST['address']);
                 $status = sanitizeInput($_POST['status']);
 
-                $stmt = $conn->prepare("UPDATE customers SET name = ?, phone = ?, address = ?, status = ? WHERE id = ?");
-                $stmt->bind_param("ssssi", $name, $phone, $address, $status, $id);
+                // Validation
+                $validator->validateName($name, 'Customer Name');
+                $validator->validatePhone($phone, 'Phone Number');
+                $validator->validateRequired($address, 'Address');
 
-                if ($stmt->execute()) {
-                    $message = 'Customer updated successfully!';
-                    $messageType = 'success';
-                } else {
-                    $message = 'Error updating customer: ' . $conn->error;
+                // Check for duplicate phone number (excluding current customer)
+                $validator->checkUnique($conn, 'customers', 'phone', $phone, $id, 'Phone Number');
+
+                if (!$validator->isValid()) {
+                    $message = $validator->getErrorsAsString();
                     $messageType = 'error';
+                } else {
+                    $stmt = $conn->prepare("UPDATE customers SET name = ?, phone = ?, address = ?, status = ? WHERE id = ?");
+                    $stmt->bind_param("ssssi", $name, $phone, $address, $status, $id);
+
+                    if ($stmt->execute()) {
+                        $message = 'Customer updated successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error updating customer: ' . $conn->error;
+                        $messageType = 'error';
+                    }
+                    $stmt->close();
                 }
-                $stmt->close();
                 break;
 
             case 'delete':
                 $id = intval($_POST['id']);
 
-                $stmt = $conn->prepare("DELETE FROM customers WHERE id = ?");
-                $stmt->bind_param("i", $id);
+                // Check if customer has orders
+                $checkStmt = $conn->prepare("SELECT COUNT(*) as count FROM orders WHERE customer_id = ?");
+                $checkStmt->bind_param("i", $id);
+                $checkStmt->execute();
+                $result = $checkStmt->get_result();
+                $data = $result->fetch_assoc();
+                $checkStmt->close();
 
-                if ($stmt->execute()) {
-                    $message = 'Customer deleted successfully!';
-                    $messageType = 'success';
-                } else {
-                    $message = 'Error deleting customer: ' . $conn->error;
+                if ($data['count'] > 0) {
+                    $message = 'Cannot delete customer: They have existing orders. Deactivate them instead.';
                     $messageType = 'error';
+                } else {
+                    $stmt = $conn->prepare("DELETE FROM customers WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+
+                    if ($stmt->execute()) {
+                        $message = 'Customer deleted successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error deleting customer: ' . $conn->error;
+                        $messageType = 'error';
+                    }
+                    $stmt->close();
                 }
-                $stmt->close();
                 break;
         }
     }
@@ -113,7 +154,7 @@ renderHeader('Customers');
                         <circle cx="11" cy="11" r="8" />
                         <path d="m21 21-4.35-4.35" />
                     </svg>
-                    <input type="search" id="searchInput" class="input" placeholder="Search customers...">
+                    <input type="search" id="searchInput" class="input" placeholder="Search customers..." onkeyup="searchTable()">
                 </div>
             </div>
 
@@ -146,7 +187,7 @@ renderHeader('Customers');
                                         <td><?php echo number_format($customer['total_orders']); ?></td>
                                         <td>
                                             <div class="table-actions">
-                                                <button class="icon-btn" onclick="editCustomer(<?php echo htmlspecialchars(json_encode($customer)); ?>)" title="Edit">
+                                                <button class="icon-btn" onclick='editCustomer(<?php echo htmlspecialchars(json_encode($customer)); ?>)' title="Edit">
                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                         <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
                                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -201,7 +242,7 @@ renderHeader('Customers');
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="add_phone">Phone Number</label>
-                    <input type="tel" id="add_phone" name="phone" class="input" required>
+                    <input type="tel" id="add_phone" name="phone" class="input" required placeholder="09XXXXXXXXX">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="add_address">Address</label>
@@ -245,7 +286,7 @@ renderHeader('Customers');
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="edit_phone">Phone Number</label>
-                    <input type="tel" id="edit_phone" name="phone" class="input" required>
+                    <input type="tel" id="edit_phone" name="phone" class="input" required placeholder="09XXXXXXXXX">
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="edit_address">Address</label>
@@ -274,6 +315,27 @@ renderHeader('Customers');
 </form>
 
 <script>
+    function searchTable() {
+        const input = document.getElementById('searchInput');
+        const filter = input.value.toLowerCase();
+        const table = document.getElementById('customersTable');
+        const tr = table.getElementsByTagName('tr');
+
+        for (let i = 1; i < tr.length; i++) {
+            const tdName = tr[i].getElementsByTagName('td')[0];
+            const tdPhone = tr[i].getElementsByTagName('td')[1];
+            if (tdName || tdPhone) {
+                const txtValueName = tdName.textContent || tdName.innerText;
+                const txtValuePhone = tdPhone.textContent || tdPhone.innerText;
+                if (txtValueName.toLowerCase().indexOf(filter) > -1 || txtValuePhone.toLowerCase().indexOf(filter) > -1) {
+                    tr[i].style.display = "";
+                } else {
+                    tr[i].style.display = "none";
+                }
+            }
+        }
+    }
+
     function editCustomer(customer) {
         document.getElementById('edit_id').value = customer.id;
         document.getElementById('edit_name').value = customer.name;

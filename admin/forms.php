@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../auth/session.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 
@@ -10,6 +11,40 @@ requireRole('admin');
 
 $conn = getDBConnection();
 $message = '';
+$messageType = '';
+$validator = new Validator();
+
+// Handle form submissions
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    switch ($_POST['action']) {
+        case 'create':
+            $customer_id = intval($_POST['customer_id']);
+            $container_size = sanitizeInput($_POST['container_size']);
+            $quantity = intval($_POST['quantity']);
+            $delivery_date = sanitizeInput($_POST['delivery_date']);
+            $delivery_time = sanitizeInput($_POST['delivery_time']);
+            $notes = sanitizeInput($_POST['notes']);
+            $status = sanitizeInput($_POST['status']);
+
+            // Validation
+            $validator->validateRequired($customer_id, 'Customer');
+            $validator->validateRequired($container_size, 'Container Size');
+            $validator->validateRange($quantity, 1, 1000, 'Quantity');
+            $validator->validateFutureDate($delivery_date, 'Delivery Date');
+            $validator->validateBusinessHours($delivery_time, 'Delivery Time');
+
+            if (!$validator->isValid()) {
+                $message = $validator->getErrorsAsString();
+                $messageType = 'error';
+            } else {
+                $stmt = $conn->prepare("INSERT INTO orders (customer_id, container_size, quantity, delivery_date, delivery_time, notes, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                $userId = getUserId();
+                $stmt->bind_param("ississsi", $customer_id, $container_size, $quantity, $delivery_date, $delivery_time, $notes, $status, $userId);
+
+                if ($stmt->execute()) {
+                    // Update customer total orders
+                    $updateStmt = $conn->prepare("UPDATE customers SET total_orders = total_orders + 1 WHERE id = ?");
+                    $updateStmt->bind_param("i", $customer_id);
                     $updateStmt->execute();
                     $updateStmt->close();
 
@@ -20,20 +55,32 @@ $message = '';
                     $messageType = 'error';
                 }
                 $stmt->close();
-                break;
+            }
+            break;
 
-            case 'update':
-                $id = intval($_POST['id']);
-                $customer_id = intval($_POST['customer_id']);
-                $container_size = sanitizeInput($_POST['container_size']);
-                $quantity = intval($_POST['quantity']);
-                $delivery_date = sanitizeInput($_POST['delivery_date']);
-                $delivery_time = sanitizeInput($_POST['delivery_time']);
-                $notes = sanitizeInput($_POST['notes']);
-                $status = sanitizeInput($_POST['status']);
+        case 'update':
+            $id = intval($_POST['id']);
+            $customer_id = intval($_POST['customer_id']);
+            $container_size = sanitizeInput($_POST['container_size']);
+            $quantity = intval($_POST['quantity']);
+            $delivery_date = sanitizeInput($_POST['delivery_date']);
+            $delivery_time = sanitizeInput($_POST['delivery_time']);
+            $status = sanitizeInput($_POST['status']);
+            $notes = sanitizeInput($_POST['notes']);
 
-                $stmt = $conn->prepare("UPDATE orders SET customer_id = ?, container_size = ?, quantity = ?, delivery_date = ?, delivery_time = ?, notes = ?, status = ? WHERE id = ?");
-                $stmt->bind_param("isissssi", $customer_id, $container_size, $quantity, $delivery_date, $delivery_time, $notes, $status, $id);
+            // Validation
+            $validator->validateRequired($customer_id, 'Customer');
+            $validator->validateRequired($container_size, 'Container Size');
+            $validator->validateRange($quantity, 1, 1000, 'Quantity');
+            $validator->validateFutureDate($delivery_date, 'Delivery Date');
+            $validator->validateBusinessHours($delivery_time, 'Delivery Time');
+
+            if (!$validator->isValid()) {
+                $message = $validator->getErrorsAsString();
+                $messageType = 'error';
+            } else {
+                $stmt = $conn->prepare("UPDATE orders SET customer_id = ?, container_size = ?, quantity = ?, delivery_date = ?, delivery_time = ?, status = ?, notes = ? WHERE id = ?");
+                $stmt->bind_param("ississsi", $customer_id, $container_size, $quantity, $delivery_date, $delivery_time, $status, $notes, $id);
 
                 if ($stmt->execute()) {
                     $message = 'Order updated successfully!';
@@ -43,23 +90,58 @@ $message = '';
                     $messageType = 'error';
                 }
                 $stmt->close();
-                break;
+            }
+            break;
 
-            case 'delete':
-                $id = intval($_POST['id']);
-                $stmt = $conn->prepare("DELETE FROM orders WHERE id = ?");
-                $stmt->bind_param("i", $id);
+        case 'delete':
+            $id = intval($_POST['id']);
 
-                if ($stmt->execute()) {
-                    $message = 'Order deleted successfully!';
-                    $messageType = 'success';
+            // Check if order has linked deliveries
+            $checkStmt = $conn->prepare("SELECT COUNT(*) as delivery_count FROM deliveries WHERE order_id = ?");
+            $checkStmt->bind_param("i", $id);
+            $checkStmt->execute();
+            $result = $checkStmt->get_result();
+            $data = $result->fetch_assoc();
+            $checkStmt->close();
+
+            if ($data['delivery_count'] > 0) {
+                $message = 'Cannot delete order: It has linked deliveries. Delete the deliveries first.';
+                $messageType = 'error';
+            } else {
+                // Get customer_id before deleting to update stats
+                $getCustomerStmt = $conn->prepare("SELECT customer_id FROM orders WHERE id = ?");
+                $getCustomerStmt->bind_param("i", $id);
+                $getCustomerStmt->execute();
+                $customerResult = $getCustomerStmt->get_result();
+                $orderData = $customerResult->fetch_assoc();
+                $getCustomerStmt->close();
+
+                if ($orderData) {
+                    $customer_id = $orderData['customer_id'];
+
+                    $stmt = $conn->prepare("DELETE FROM orders WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+
+                    if ($stmt->execute()) {
+                        // Update customer total orders
+                        $updateStmt = $conn->prepare("UPDATE customers SET total_orders = total_orders - 1 WHERE id = ?");
+                        $updateStmt->bind_param("i", $customer_id);
+                        $updateStmt->execute();
+                        $updateStmt->close();
+
+                        $message = 'Order deleted successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error deleting order: ' . $conn->error;
+                        $messageType = 'error';
+                    }
+                    $stmt->close();
                 } else {
-                    $message = 'Error deleting order: ' . $conn->error;
+                    $message = "Order with ID: $id not found. DB Error: " . $conn->error . " Rows: " . ($customerResult ? $customerResult->num_rows : 'false');
                     $messageType = 'error';
                 }
-                $stmt->close();
-                break;
-        }
+            }
+            break;
     }
 }
 
@@ -102,6 +184,7 @@ renderHeader('Forms');
                 </div>
             <?php endif; ?>
 
+            <!-- Orders Table -->
             <div class="card">
                 <div class="table-container">
                     <table class="table">
@@ -150,7 +233,7 @@ renderHeader('Forms');
                                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                                     </svg>
                                                 </button>
-                                                <button class="icon-btn icon-btn-delete" onclick="deleteOrder(<?php echo $order['id']; ?>, '<?php echo htmlspecialchars($order['customer_name']); ?>')" title="Delete">
+                                                <button class="icon-btn icon-btn-delete" onclick="openDeleteOrderModal(<?php echo $order['id']; ?>, '<?php echo htmlspecialchars($order['customer_name']); ?>')" title="Delete">
                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                         <polyline points="3 6 5 6 21 6" />
                                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -178,6 +261,7 @@ renderHeader('Forms');
     </main>
 </div>
 
+<!-- Add Order Modal -->
 <div id="addOrderModal" class="modal-overlay">
     <div class="modal" style="overflow: hidden; max-height: 70vh; display: flex; flex-direction: column;">
         <div class="modal-header">
@@ -193,8 +277,8 @@ renderHeader('Forms');
             <input type="hidden" name="action" value="create">
             <div class="modal-body" style="flex: 1 1 auto; overflow-y: auto; overflow-x: hidden; min-height: 0; max-height: calc(70vh - 180px);">
                 <div class="form-group">
-                    <label class="form-label" for="add_customer_id">Customer</label>
-                    <select id="add_customer_id" name="customer_id" class="input" required>
+                    <label class="form-label" for="customer_id">Customer</label>
+                    <select id="customer_id" name="customer_id" class="input" required>
                         <option value="">Select Customer</option>
                         <?php
                         $customers->data_seek(0);
@@ -207,8 +291,8 @@ renderHeader('Forms');
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="add_container_size">Container Size</label>
-                    <select id="add_container_size" name="container_size" class="input" required>
+                    <label class="form-label" for="container_size">Container Size</label>
+                    <select id="container_size" name="container_size" class="input" required>
                         <option value="">Select Size</option>
                         <option value="5-gallon">5 Gallon - ₱25.00</option>
                         <option value="3-gallon">3 Gallon - ₱15.00</option>
@@ -216,24 +300,24 @@ renderHeader('Forms');
                     </select>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="add_quantity">Quantity</label>
-                    <input type="number" id="add_quantity" name="quantity" class="input" min="1" value="1" required>
+                    <label class="form-label" for="quantity">Quantity</label>
+                    <input type="number" id="quantity" name="quantity" class="input" min="1" value="1" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="add_delivery_date">Delivery Date</label>
-                    <input type="date" id="add_delivery_date" name="delivery_date" class="input" required>
+                    <label class="form-label" for="delivery_date">Delivery Date</label>
+                    <input type="date" id="delivery_date" name="delivery_date" class="input" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="add_delivery_time">Delivery Time</label>
-                    <input type="time" id="add_delivery_time" name="delivery_time" class="input" required>
+                    <label class="form-label" for="delivery_time">Delivery Time</label>
+                    <input type="time" id="delivery_time" name="delivery_time" class="input" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="add_notes">Notes (Optional)</label>
-                    <textarea id="add_notes" name="notes" class="input" rows="3"></textarea>
+                    <label class="form-label" for="notes">Notes (Optional)</label>
+                    <textarea id="notes" name="notes" class="input" rows="3"></textarea>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="add_status">Status</label>
-                    <select id="add_status" name="status" class="input" required>
+                    <label class="form-label" for="status">Status</label>
+                    <select id="status" name="status" class="input" required>
                         <option value="pending">Pending</option>
                         <option value="processing">Processing</option>
                         <option value="completed">Completed</option>
@@ -249,6 +333,7 @@ renderHeader('Forms');
     </div>
 </div>
 
+<!-- Edit Order Modal -->
 <div id="editOrderModal" class="modal-overlay">
     <div class="modal" style="overflow: hidden; max-height: 70vh; display: flex; flex-direction: column;">
         <div class="modal-header">
@@ -300,10 +385,6 @@ renderHeader('Forms');
                     <input type="time" id="edit_delivery_time" name="delivery_time" class="input" required>
                 </div>
                 <div class="form-group">
-                    <label class="form-label" for="edit_notes">Notes (Optional)</label>
-                    <textarea id="edit_notes" name="notes" class="input" rows="3"></textarea>
-                </div>
-                <div class="form-group">
                     <label class="form-label" for="edit_status">Status</label>
                     <select id="edit_status" name="status" class="input" required>
                         <option value="pending">Pending</option>
@@ -311,6 +392,10 @@ renderHeader('Forms');
                         <option value="completed">Completed</option>
                         <option value="cancelled">Cancelled</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="edit_notes">Notes (Optional)</label>
+                    <textarea id="edit_notes" name="notes" class="input" rows="3"></textarea>
                 </div>
             </div>
             <div class="modal-footer" style="flex-shrink: 0; background: white; padding: 1.5rem; border-top: 1px solid #B2DFDB; display: flex; justify-content: flex-end; gap: 0.75rem;">
@@ -321,10 +406,52 @@ renderHeader('Forms');
     </div>
 </div>
 
-<form id="deleteForm" method="POST" action="" style="display: none;">
-    <input type="hidden" name="action" value="delete">
-    <input type="hidden" id="delete_id" name="id">
-</form>
+<!-- Delete Order Modal -->
+<div id="customDeleteOrderModal" class="modal-overlay">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 class="modal-title">Delete Order</h2>
+            <button class="modal-close" data-close-modal="customDeleteOrderModal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+            </button>
+        </div>
+        <form method="POST" action="">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" id="custom_delete_order_id" name="id">
+            <div class="modal-body">
+                <p>Are you sure you want to delete this order for <strong id="delete_customer_name"></strong>?</p>
+                <p style="color: var(--error-600); margin-top: 1rem;">This action cannot be undone.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-close-modal="customDeleteOrderModal">Cancel</button>
+                <button type="submit" class="btn btn-danger">Delete Order</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function editOrder(order) {
+        document.getElementById('edit_id').value = order.id;
+        document.getElementById('edit_customer_id').value = order.customer_id;
+        document.getElementById('edit_container_size').value = order.container_size;
+        document.getElementById('edit_quantity').value = order.quantity;
+        document.getElementById('edit_delivery_date').value = order.delivery_date;
+        document.getElementById('edit_delivery_time').value = order.delivery_time;
+        document.getElementById('edit_status').value = order.status;
+        document.getElementById('edit_notes').value = order.notes || '';
+        openModal('editOrderModal');
+    }
+
+    function openDeleteOrderModal(id, customerName) {
+        document.getElementById('custom_delete_order_id').value = id;
+        document.getElementById('delete_customer_name').textContent = customerName;
+        openModal('customDeleteOrderModal');
+    }
+</script>
 
 <?php
 closeDBConnection($conn);

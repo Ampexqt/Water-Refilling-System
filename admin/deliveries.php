@@ -3,6 +3,7 @@ require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../auth/session.php';
 require_once __DIR__ . '/../includes/functions.php';
+require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/header.php';
 require_once __DIR__ . '/../includes/sidebar.php';
 
@@ -11,6 +12,7 @@ requireRole('admin');
 $conn = getDBConnection();
 $message = '';
 $messageType = '';
+$validator = new Validator();
 
 // Handle form submissions
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -23,34 +25,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $items = sanitizeInput($_POST['items']);
                 $notes = sanitizeInput($_POST['notes']);
 
-                // Get delivery date and time from the order
-                $orderQuery = $conn->prepare("SELECT delivery_date, delivery_time FROM orders WHERE id = ?");
-                $orderQuery->bind_param("i", $order_id);
-                $orderQuery->execute();
-                $orderResult = $orderQuery->get_result();
-                $orderData = $orderResult->fetch_assoc();
-                $scheduled_date = $orderData['delivery_date'];
-                $scheduled_time = $orderData['delivery_time'];
-                $orderQuery->close();
+                // Validation
+                $validator->validateRequired($order_id, 'Order');
+                $validator->validateRequired($delivery_address, 'Delivery Address');
+                $validator->validateRequired($items, 'Items');
 
-                $stmt = $conn->prepare("INSERT INTO deliveries (order_id, customer_id, delivery_address, items, scheduled_date, scheduled_time, status, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)");
-                $userId = getUserId();
-                $stmt->bind_param("iisssssi", $order_id, $customer_id, $delivery_address, $items, $scheduled_date, $scheduled_time, $notes, $userId);
-
-                if ($stmt->execute()) {
-                    // Update order status to processing when delivery is created
-                    $updateStmt = $conn->prepare("UPDATE orders SET status = 'processing' WHERE id = ?");
-                    $updateStmt->bind_param("i", $order_id);
-                    $updateStmt->execute();
-                    $updateStmt->close();
-
-                    $message = 'Delivery created successfully!';
-                    $messageType = 'success';
-                } else {
-                    $message = 'Error creating delivery: ' . $conn->error;
+                if (!$validator->isValid()) {
+                    $message = $validator->getErrorsAsString();
                     $messageType = 'error';
+                } else {
+                    // Get delivery date and time from the order
+                    $orderQuery = $conn->prepare("SELECT delivery_date, delivery_time FROM orders WHERE id = ?");
+                    $orderQuery->bind_param("i", $order_id);
+                    $orderQuery->execute();
+                    $orderResult = $orderQuery->get_result();
+                    $orderData = $orderResult->fetch_assoc();
+                    $scheduled_date = $orderData['delivery_date'];
+                    $scheduled_time = $orderData['delivery_time'];
+                    $orderQuery->close();
+
+                    $stmt = $conn->prepare("INSERT INTO deliveries (order_id, customer_id, delivery_address, items, scheduled_date, scheduled_time, status, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)");
+                    $userId = getUserId();
+                    $stmt->bind_param("iisssssi", $order_id, $customer_id, $delivery_address, $items, $scheduled_date, $scheduled_time, $notes, $userId);
+
+                    if ($stmt->execute()) {
+                        // Update order status to processing when delivery is created
+                        $updateStmt = $conn->prepare("UPDATE orders SET status = 'processing' WHERE id = ?");
+                        $updateStmt->bind_param("i", $order_id);
+                        $updateStmt->execute();
+                        $updateStmt->close();
+
+                        $message = 'Delivery created successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error creating delivery: ' . $conn->error;
+                        $messageType = 'error';
+                    }
+                    $stmt->close();
                 }
-                $stmt->close();
                 break;
 
             case 'update':
@@ -61,33 +73,66 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $status = sanitizeInput($_POST['status']);
                 $notes = sanitizeInput($_POST['notes']);
 
-                $stmt = $conn->prepare("UPDATE deliveries SET delivery_address = ?, scheduled_date = ?, scheduled_time = ?, status = ?, notes = ? WHERE id = ?");
-                $stmt->bind_param("sssssi", $delivery_address, $scheduled_date, $scheduled_time, $status, $notes, $id);
+                // Validation
+                $validator->validateRequired($delivery_address, 'Delivery Address');
+                $validator->validateFutureDate($scheduled_date, 'Scheduled Date');
+                $validator->validateBusinessHours($scheduled_time, 'Scheduled Time');
 
-                if ($stmt->execute()) {
-                    $message = 'Delivery updated successfully!';
-                    $messageType = 'success';
-                } else {
-                    $message = 'Error updating delivery: ' . $conn->error;
+                if (!$validator->isValid()) {
+                    $message = $validator->getErrorsAsString();
                     $messageType = 'error';
+                } else {
+                    $stmt = $conn->prepare("UPDATE deliveries SET delivery_address = ?, scheduled_date = ?, scheduled_time = ?, status = ?, notes = ? WHERE id = ?");
+                    $stmt->bind_param("sssssi", $delivery_address, $scheduled_date, $scheduled_time, $status, $notes, $id);
+
+                    if ($stmt->execute()) {
+                        $message = 'Delivery updated successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error updating delivery: ' . $conn->error;
+                        $messageType = 'error';
+                    }
+                    $stmt->close();
                 }
-                $stmt->close();
                 break;
 
             case 'delete':
                 $id = intval($_POST['id']);
 
-                $stmt = $conn->prepare("DELETE FROM deliveries WHERE id = ?");
-                $stmt->bind_param("i", $id);
+                // Get the order_id before deleting the delivery
+                $getOrderStmt = $conn->prepare("SELECT order_id FROM deliveries WHERE id = ?");
+                $getOrderStmt->bind_param("i", $id);
+                $getOrderStmt->execute();
+                $result = $getOrderStmt->get_result();
+                $deliveryData = $result->fetch_assoc();
+                $getOrderStmt->close();
 
-                if ($stmt->execute()) {
-                    $message = 'Delivery deleted successfully!';
-                    $messageType = 'success';
+                if ($deliveryData) {
+                    $order_id = $deliveryData['order_id'];
+
+                    $stmt = $conn->prepare("DELETE FROM deliveries WHERE id = ?");
+                    $stmt->bind_param("i", $id);
+
+                    if ($stmt->execute()) {
+                        // If delivery was linked to an order, change order status back to pending
+                        if ($order_id > 0) {
+                            $updateOrderStmt = $conn->prepare("UPDATE orders SET status = 'pending' WHERE id = ?");
+                            $updateOrderStmt->bind_param("i", $order_id);
+                            $updateOrderStmt->execute();
+                            $updateOrderStmt->close();
+                        }
+
+                        $message = 'Delivery deleted successfully!';
+                        $messageType = 'success';
+                    } else {
+                        $message = 'Error deleting delivery: ' . $conn->error;
+                        $messageType = 'error';
+                    }
+                    $stmt->close();
                 } else {
-                    $message = 'Error deleting delivery: ' . $conn->error;
+                    $message = 'Delivery not found or already deleted.';
                     $messageType = 'error';
                 }
-                $stmt->close();
                 break;
         }
     }
