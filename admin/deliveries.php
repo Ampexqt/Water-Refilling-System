@@ -24,26 +24,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $delivery_address = sanitizeInput($_POST['delivery_address']);
                 $items = sanitizeInput($_POST['items']);
                 $notes = sanitizeInput($_POST['notes']);
+                $scheduled_date = sanitizeInput($_POST['scheduled_date']);
+                $scheduled_time = sanitizeInput($_POST['scheduled_time']);
 
                 // Validation
                 $validator->validateRequired($order_id, 'Order');
                 $validator->validateRequired($delivery_address, 'Delivery Address');
                 $validator->validateRequired($items, 'Items');
+                $validator->validateRequired($scheduled_date, 'Scheduled Date');
+                $validator->validateRequired($scheduled_time, 'Scheduled Time');
+                $validator->validateFutureDate($scheduled_date, 'Scheduled Date');
+                $validator->validateBusinessHours($scheduled_time, 'Scheduled Time');
 
                 if (!$validator->isValid()) {
                     $message = $validator->getErrorsAsString();
                     $messageType = 'error';
                 } else {
-                    // Get delivery date and time from the order
-                    $orderQuery = $conn->prepare("SELECT delivery_date, delivery_time FROM orders WHERE id = ?");
-                    $orderQuery->bind_param("i", $order_id);
-                    $orderQuery->execute();
-                    $orderResult = $orderQuery->get_result();
-                    $orderData = $orderResult->fetch_assoc();
-                    $scheduled_date = $orderData['delivery_date'];
-                    $scheduled_time = $orderData['delivery_time'];
-                    $orderQuery->close();
-
                     $stmt = $conn->prepare("INSERT INTO deliveries (order_id, customer_id, delivery_address, items, scheduled_date, scheduled_time, status, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?)");
                     $userId = getUserId();
                     $stmt->bind_param("iisssssi", $order_id, $customer_id, $delivery_address, $items, $scheduled_date, $scheduled_time, $notes, $userId);
@@ -278,7 +274,9 @@ renderHeader('Deliveries');
                                 data-customer-name="<?php echo htmlspecialchars($order['customer_name']); ?>"
                                 data-customer-phone="<?php echo htmlspecialchars($order['phone']); ?>"
                                 data-address="<?php echo htmlspecialchars($order['address']); ?>"
-                                data-items="<?php echo $order['quantity']; ?>x <?php echo formatContainerSize($order['container_size']); ?>">
+                                data-items="<?php echo $order['quantity']; ?>x <?php echo formatContainerSize($order['container_size']); ?>"
+                                data-date="<?php echo $order['delivery_date']; ?>"
+                                data-time="<?php echo $order['delivery_time']; ?>">
                                 Order #<?php echo str_pad($order['id'], 4, '0', STR_PAD_LEFT); ?> - <?php echo htmlspecialchars($order['customer_name']); ?> (<?php echo $order['quantity']; ?>x <?php echo formatContainerSize($order['container_size']); ?>)
                             </option>
                         <?php endwhile; ?>
@@ -299,6 +297,14 @@ renderHeader('Deliveries');
                             <input type="text" id="add_items" name="items" class="input" required readonly>
                         </div>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="add_scheduled_date">Scheduled Date</label>
+                    <input type="date" id="add_scheduled_date" name="scheduled_date" class="input" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="add_scheduled_time">Scheduled Time</label>
+                    <input type="time" id="add_scheduled_time" name="scheduled_time" class="input" required>
                 </div>
                 <div class="form-group">
                     <label class="form-label" for="add_notes">Notes (Optional)</label>
@@ -379,6 +385,8 @@ renderHeader('Deliveries');
             const customerPhone = selectedOption.getAttribute('data-customer-phone');
             const address = selectedOption.getAttribute('data-address');
             const items = selectedOption.getAttribute('data-items');
+            const date = selectedOption.getAttribute('data-date');
+            const time = selectedOption.getAttribute('data-time');
 
             // Populate hidden customer_id field
             document.getElementById('add_customer_id').value = customerId;
@@ -394,6 +402,8 @@ renderHeader('Deliveries');
             document.getElementById('items_section').style.display = 'block';
             document.getElementById('add_delivery_address').value = address;
             document.getElementById('add_items').value = items;
+            document.getElementById('add_scheduled_date').value = date;
+            document.getElementById('add_scheduled_time').value = time;
         } else {
             document.getElementById('add_customer_id').value = '';
             document.getElementById('customer_info').innerHTML = 'Select an order to view customer details';
@@ -401,6 +411,8 @@ renderHeader('Deliveries');
             document.getElementById('items_section').style.display = 'none';
             document.getElementById('add_delivery_address').value = '';
             document.getElementById('add_items').value = '';
+            document.getElementById('add_scheduled_date').value = '';
+            document.getElementById('add_scheduled_time').value = '';
         }
     }
 

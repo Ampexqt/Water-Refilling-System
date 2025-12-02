@@ -15,15 +15,24 @@ function editOrder(order) {
 }
 
 function deleteOrder(id, customerName) {
+    if (!id || id <= 0) {
+        console.error('Invalid order ID:', id);
+        alert('Error: Invalid order ID. Please try again.');
+        return;
+    }
+    
     deleteOrderId = id;
     deleteOrderName = customerName;
-    document.getElementById('deleteOrderName').textContent = 'Order for: ' + customerName;
-    openModal('deleteOrderModal');
-}
-
-function confirmDeleteOrder() {
-    if (deleteOrderId) {
-        document.getElementById('delete_id').value = deleteOrderId;
-        document.getElementById('deleteForm').submit();
+    
+    const deleteIdField = document.getElementById('delete_id');
+    const deleteNameField = document.getElementById('deleteOrderName');
+    
+    if (deleteIdField && deleteNameField) {
+        deleteIdField.value = id;
+        deleteNameField.textContent = 'Order for: ' + customerName;
+        openModal('deleteOrderModal');
+    } else {
+        console.error('Delete modal elements not found');
+        alert('Error: Delete modal not properly loaded. Please refresh the page.');
     }
 }

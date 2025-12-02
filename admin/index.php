@@ -12,17 +12,20 @@ $conn = getDBConnection();
 
 // Get statistics
 $totalCustomersQuery = "SELECT COUNT(*) as count FROM customers WHERE status = 'active'";
-$totalCustomers = $conn->query($totalCustomersQuery)->fetch_assoc()['count'];
+$totalCustomersResult = $conn->query($totalCustomersQuery)->fetch_assoc();
+$totalCustomers = $totalCustomersResult['count'] ?? 0;
 
-$dailySalesQuery = "SELECT SUM(total) as total FROM pos_transactions WHERE DATE(created_at) = CURDATE()";
+$dailySalesQuery = "SELECT COALESCE(SUM(total), 0) as total FROM pos_transactions WHERE DATE(created_at) = CURDATE()";
 $dailySalesResult = $conn->query($dailySalesQuery)->fetch_assoc();
 $dailySales = $dailySalesResult['total'] ?? 0;
 
 $refillsTodayQuery = "SELECT COUNT(*) as count FROM orders WHERE DATE(created_at) = CURDATE()";
-$refillsToday = $conn->query($refillsTodayQuery)->fetch_assoc()['count'];
+$refillsTodayResult = $conn->query($refillsTodayQuery)->fetch_assoc();
+$refillsToday = $refillsTodayResult['count'] ?? 0;
 
 $deliveriesQuery = "SELECT COUNT(*) as count FROM deliveries WHERE status IN ('pending', 'in-transit')";
-$pendingDeliveries = $conn->query($deliveriesQuery)->fetch_assoc()['count'];
+$deliveriesResult = $conn->query($deliveriesQuery)->fetch_assoc();
+$pendingDeliveries = $deliveriesResult['count'] ?? 0;
 
 // Get recent orders
 $recentOrdersQuery = "SELECT o.*, c.name as customer_name 

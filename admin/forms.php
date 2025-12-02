@@ -27,6 +27,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $status = sanitizeInput($_POST['status']);
 
             // Validation
+            $validator->validateRequired($delivery_date, 'Delivery Date');
+            $validator->validateRequired($delivery_time, 'Delivery Time');
             $validator->validateRequired($customer_id, 'Customer');
             $validator->validateRequired($container_size, 'Container Size');
             $validator->validateRange($quantity, 1, 1000, 'Quantity');
@@ -39,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             } else {
                 $stmt = $conn->prepare("INSERT INTO orders (customer_id, container_size, quantity, delivery_date, delivery_time, notes, status, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
                 $userId = getUserId();
-                $stmt->bind_param("ississsi", $customer_id, $container_size, $quantity, $delivery_date, $delivery_time, $notes, $status, $userId);
+                $stmt->bind_param("isissssi", $customer_id, $container_size, $quantity, $delivery_date, $delivery_time, $notes, $status, $userId);
 
                 if ($stmt->execute()) {
                     // Update customer total orders
@@ -69,6 +71,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $notes = sanitizeInput($_POST['notes']);
 
             // Validation
+            $validator->validateRequired($delivery_date, 'Delivery Date');
+            $validator->validateRequired($delivery_time, 'Delivery Time');
             $validator->validateRequired($customer_id, 'Customer');
             $validator->validateRequired($container_size, 'Container Size');
             $validator->validateRange($quantity, 1, 1000, 'Quantity');
@@ -80,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 $messageType = 'error';
             } else {
                 $stmt = $conn->prepare("UPDATE orders SET customer_id = ?, container_size = ?, quantity = ?, delivery_date = ?, delivery_time = ?, status = ?, notes = ? WHERE id = ?");
-                $stmt->bind_param("ississsi", $customer_id, $container_size, $quantity, $delivery_date, $delivery_time, $status, $notes, $id);
+                $stmt->bind_param("isissssi", $customer_id, $container_size, $quantity, $delivery_date, $delivery_time, $status, $notes, $id);
 
                 if ($stmt->execute()) {
                     $message = 'Order updated successfully!';
@@ -94,53 +98,65 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             break;
 
         case 'delete':
-            $id = intval($_POST['id']);
+            $id = intval($_POST['id'] ?? 0);
+
+            // Validate ID
+            if ($id <= 0) {
+                $message = 'Invalid order ID provided.';
+                $messageType = 'error';
+                break;
+            }
 
             // Check if order has linked deliveries
-            $checkStmt = $conn->prepare("SELECT COUNT(*) as delivery_count FROM deliveries WHERE order_id = ?");
-            $checkStmt->bind_param("i", $id);
-            $checkStmt->execute();
-            $result = $checkStmt->get_result();
-            $data = $result->fetch_assoc();
-            $checkStmt->close();
+            $checkDeliveryStmt = $conn->prepare("SELECT COUNT(*) as delivery_count FROM deliveries WHERE order_id = ?");
+            $checkDeliveryStmt->bind_param("i", $id);
+            $checkDeliveryStmt->execute();
+            $deliveryResult = $checkDeliveryStmt->get_result();
+            $deliveryData = $deliveryResult->fetch_assoc();
+            $checkDeliveryStmt->close();
 
-            if ($data['delivery_count'] > 0) {
-                $message = 'Cannot delete order: It has linked deliveries. Delete the deliveries first.';
+            if ($deliveryData && $deliveryData['delivery_count'] > 0) {
+                $message = 'Cannot delete order: It has ' . $deliveryData['delivery_count'] . ' linked delivery(ies). Please delete the delivery(ies) first.';
                 $messageType = 'error';
-            } else {
-                // Get customer_id before deleting to update stats
-                $getCustomerStmt = $conn->prepare("SELECT customer_id FROM orders WHERE id = ?");
-                $getCustomerStmt->bind_param("i", $id);
-                $getCustomerStmt->execute();
-                $customerResult = $getCustomerStmt->get_result();
-                $orderData = $customerResult->fetch_assoc();
-                $getCustomerStmt->close();
-
-                if ($orderData) {
-                    $customer_id = $orderData['customer_id'];
-
-                    $stmt = $conn->prepare("DELETE FROM orders WHERE id = ?");
-                    $stmt->bind_param("i", $id);
-
-                    if ($stmt->execute()) {
-                        // Update customer total orders
-                        $updateStmt = $conn->prepare("UPDATE customers SET total_orders = total_orders - 1 WHERE id = ?");
-                        $updateStmt->bind_param("i", $customer_id);
-                        $updateStmt->execute();
-                        $updateStmt->close();
-
-                        $message = 'Order deleted successfully!';
-                        $messageType = 'success';
-                    } else {
-                        $message = 'Error deleting order: ' . $conn->error;
-                        $messageType = 'error';
-                    }
-                    $stmt->close();
-                } else {
-                    $message = "Order with ID: $id not found. DB Error: " . $conn->error . " Rows: " . ($customerResult ? $customerResult->num_rows : 'false');
-                    $messageType = 'error';
-                }
+                break;
             }
+
+            // Get customer_id before deleting to update stats
+            $getCustomerStmt = $conn->prepare("SELECT customer_id FROM orders WHERE id = ?");
+            $getCustomerStmt->bind_param("i", $id);
+            $getCustomerStmt->execute();
+            $customerResult = $getCustomerStmt->get_result();
+            $orderData = $customerResult->fetch_assoc();
+            $getCustomerStmt->close();
+
+            if (!$orderData) {
+                $message = 'Order not found or already deleted. (ID: ' . $id . ')';
+                $messageType = 'error';
+                break;
+            }
+
+            $customer_id = $orderData['customer_id'];
+
+            // Delete the order
+            $stmt = $conn->prepare("DELETE FROM orders WHERE id = ?");
+            $stmt->bind_param("i", $id);
+
+            if ($stmt->execute()) {
+                // Update customer total orders
+                if ($customer_id > 0) {
+                    $updateStmt = $conn->prepare("UPDATE customers SET total_orders = GREATEST(0, total_orders - 1) WHERE id = ?");
+                    $updateStmt->bind_param("i", $customer_id);
+                    $updateStmt->execute();
+                    $updateStmt->close();
+                }
+
+                $message = 'Order deleted successfully!';
+                $messageType = 'success';
+            } else {
+                $message = 'Error deleting order: ' . $conn->error;
+                $messageType = 'error';
+            }
+            $stmt->close();
             break;
     }
 }
@@ -233,7 +249,7 @@ renderHeader('Forms');
                                                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
                                                     </svg>
                                                 </button>
-                                                <button class="icon-btn icon-btn-delete" onclick="openDeleteOrderModal(<?php echo $order['id']; ?>, '<?php echo htmlspecialchars($order['customer_name']); ?>')" title="Delete">
+                                                <button class="icon-btn icon-btn-delete" onclick="deleteOrder(<?php echo $order['id']; ?>, '<?php echo htmlspecialchars($order['customer_name'], ENT_QUOTES); ?>')" title="Delete">
                                                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                                         <polyline points="3 6 5 6 21 6" />
                                                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
@@ -405,53 +421,6 @@ renderHeader('Forms');
         </form>
     </div>
 </div>
-
-<!-- Delete Order Modal -->
-<div id="customDeleteOrderModal" class="modal-overlay">
-    <div class="modal">
-        <div class="modal-header">
-            <h2 class="modal-title">Delete Order</h2>
-            <button class="modal-close" data-close-modal="customDeleteOrderModal">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-            </button>
-        </div>
-        <form method="POST" action="">
-            <input type="hidden" name="action" value="delete">
-            <input type="hidden" id="custom_delete_order_id" name="id">
-            <div class="modal-body">
-                <p>Are you sure you want to delete this order for <strong id="delete_customer_name"></strong>?</p>
-                <p style="color: var(--error-600); margin-top: 1rem;">This action cannot be undone.</p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-close-modal="customDeleteOrderModal">Cancel</button>
-                <button type="submit" class="btn btn-danger">Delete Order</button>
-            </div>
-        </form>
-    </div>
-</div>
-
-<script>
-    function editOrder(order) {
-        document.getElementById('edit_id').value = order.id;
-        document.getElementById('edit_customer_id').value = order.customer_id;
-        document.getElementById('edit_container_size').value = order.container_size;
-        document.getElementById('edit_quantity').value = order.quantity;
-        document.getElementById('edit_delivery_date').value = order.delivery_date;
-        document.getElementById('edit_delivery_time').value = order.delivery_time;
-        document.getElementById('edit_status').value = order.status;
-        document.getElementById('edit_notes').value = order.notes || '';
-        openModal('editOrderModal');
-    }
-
-    function openDeleteOrderModal(id, customerName) {
-        document.getElementById('custom_delete_order_id').value = id;
-        document.getElementById('delete_customer_name').textContent = customerName;
-        openModal('customDeleteOrderModal');
-    }
-</script>
 
 <?php
 closeDBConnection($conn);

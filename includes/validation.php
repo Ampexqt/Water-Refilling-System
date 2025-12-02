@@ -27,6 +27,10 @@ class Validator
      */
     public function validateFutureDate($date, $fieldName = 'Date', $allowToday = true)
     {
+        if (empty($date)) {
+            $this->errors[] = "$fieldName is required";
+            return false;
+        }
         try {
             $inputDate = new DateTime($date);
             $today = new DateTime();

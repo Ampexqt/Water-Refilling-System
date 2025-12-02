@@ -6,27 +6,25 @@ document.addEventListener('DOMContentLoaded', function () {
     if (alertDiv) {
         // Get the message and type
         const message = alertDiv.textContent.trim();
-        const type = alertDiv.classList.contains('alert-success') ? 'success' : 'error';
+        const isSuccess = alertDiv.classList.contains('alert-success');
+        const isError = alertDiv.classList.contains('alert-error');
+        const type = isSuccess ? 'success' : (isError ? 'error' : 'info');
 
-        // Create a unique key for this message
-        const messageKey = 'toast_' + message + '_' + type;
+        // Create a unique key for this message based on timestamp to allow same message multiple times
+        const timestamp = new Date().getTime();
+        const messageKey = 'toast_' + message + '_' + type + '_' + timestamp;
 
-        // Check if we've already shown this toast
-        const alreadyShown = sessionStorage.getItem(messageKey);
-
-        // Hide the alert div
+        // Hide the alert div immediately
         alertDiv.style.display = 'none';
 
-        // Only show toast if we haven't shown it yet
-        if (!alreadyShown && typeof showToast === 'function') {
-            showToast(message, type);
-            // Mark as shown
-            sessionStorage.setItem(messageKey, 'true');
-
-            // Clear the flag after a short delay to allow showing again for new actions
+        // Show toast notification
+        if (typeof showToast === 'function') {
+            // Small delay to ensure smooth transition
             setTimeout(function () {
-                sessionStorage.removeItem(messageKey);
-            }, 1000);
+                showToast(message, type);
+            }, 100);
+        } else {
+            console.warn('showToast function not found');
         }
     }
 });

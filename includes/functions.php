@@ -8,19 +8,19 @@ function sanitizeInput($data)
 
 function formatDate($date, $format = DISPLAY_DATE_FORMAT)
 {
-    if (empty($date)) return '-';
+    if (empty($date) || $date == '0000-00-00' || $date == '1970-01-01') return '-';
     return date($format, strtotime($date));
 }
 
 function formatTime($time, $format = DISPLAY_TIME_FORMAT)
 {
-    if (empty($time)) return '-';
+    if (empty($time) || $time == '00:00:00') return '-';
     return date($format, strtotime($time));
 }
 
 function formatDateTime($datetime, $format = null)
 {
-    if (empty($datetime)) return '-';
+    if (empty($datetime) || strpos($datetime, '0000-00-00') !== false) return '-';
     if ($format === null) {
         $format = DISPLAY_DATE_FORMAT . ' ' . DISPLAY_TIME_FORMAT;
     }
